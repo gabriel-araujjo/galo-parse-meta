@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Write};
+use std::{collections::HashMap, io::Write, borrow::Cow};
 
 use nom::{
     branch::alt,
@@ -99,8 +99,19 @@ impl<'a> Abstract<'a> {
                         .iter()
                         .find_map(|(k, v)| {
                             if k == "author" {
-                                let s = v.as_str().split(',').next().unwrap();
-                                Some(s)
+                                let s: Vec<_> = v.split(" AND ")
+                                    .map(|a| a.split(',').next().unwrap())
+                                    .collect();
+                                
+                                if s.len() > 3 {
+                                    let mut s = s[0].to_owned();
+                                    s += ", _et al._";
+                                    Some(Cow::Owned(s))
+                                } else if s.len() > 1 {
+                                    Some(Cow::Owned(s.join("; ")))
+                                } else {
+                                    Some(Cow::Borrowed(s[1]))
+                                }
                             } else {
                                 None
                             }
@@ -110,12 +121,12 @@ impl<'a> Abstract<'a> {
                                 .iter()
                                 .find_map(|(k, v)| {
                                     if k == "title" {
-                                        Some(v.as_str().split(' ').next().unwrap())
+                                        Some(Cow::Borrowed(v.as_str().split(' ').next().unwrap()))
                                     } else {
                                         None
                                     }
                                 })
-                                .unwrap_or(""),
+                                .unwrap_or(Cow::Borrowed("")),
                         );
 
                     write.write_all(b"(")?;
